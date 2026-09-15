@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import './styles.css'
 import { APP_STATES } from './appStates.js'
 import { ChatPanel } from './components/ChatPanel.jsx'
@@ -7,6 +7,7 @@ import { ParticipantsList } from './components/ParticipantsList.jsx'
 import { RoomView } from './components/RoomView.jsx'
 import { Toolbar } from './components/Toolbar.jsx'
 import { VideoTile } from './components/VideoTile.jsx'
+import { socketClient } from './socketClient.js'
 
 function getInitialRoute() {
   const match = window.location.pathname.match(/^\/room\/([A-Za-z0-9_-]{6,64})\/?$/)
@@ -28,69 +29,158 @@ function App() {
   const [initialRoute] = useState(getInitialRoute)
   const [appState, setAppState] = useState(initialRoute.state)
   const [roomId, setRoomId] = useState(initialRoute.roomId)
-  const [displayName, setDisplayName] = useState('')
   const [participants, setParticipants] = useState([])
   const [messages, setMessages] = useState([])
   const [media, setMedia] = useState({ audioEnabled: true, videoEnabled: true })
+  const isLeavingRef = useRef(false)
+  const selfIdRef = useRef('')
+  const appStateRef = useRef(appState)
 
   const isUnsupported =
     !('mediaDevices' in navigator) || typeof window.RTCPeerConnection === 'undefined'
+
+  const resetRoomState = useCallback(() => {
+    selfIdRef.current = ''
+    setParticipants([])
+    setMessages([])
+    setMedia({ audioEnabled: true, videoEnabled: true })
+  }, [])
+
+  useEffect(() => {
+    appStateRef.current = appState
+  }, [appState])
+
+  useEffect(() => {
+    const unsubscribeRoom = socketClient.subscribeRoomEvents({
+      'room:participants': ({ participants: nextParticipants = [] } = {}) => {
+        setParticipants(markSelfParticipant(nextParticipants, selfIdRef.current))
+      },
+    })
+    const unsubscribeChat = socketClient.subscribeChatEvents({
+      'chat:message': (message) => {
+        setMessages((current) => [...current, message])
+      },
+    })
+    const unsubscribeMedia = socketClient.subscribeMediaEvents({
+      'media:updated': ({ participantId, media: nextMedia } = {}) => {
+        setParticipants((current) =>
+          current.map((participant) =>
+            participant.id === participantId ? { ...participant, media: nextMedia } : participant,
+          ),
+        )
+      },
+    })
+    const unsubscribeDisconnect = socketClient.onDisconnect(() => {
+      if (isLeavingRef.current || appStateRef.current !== APP_STATES.ROOM) {
+        return
+      }
+
+      resetRoomState()
+      setAppState(APP_STATES.SERVER_ERROR)
+    })
+    const unsubscribeConnectError = socketClient.onConnectError(() => {
+      if (appStateRef.current === APP_STATES.JOINING) {
+        resetRoomState()
+        setAppState(APP_STATES.SERVER_ERROR)
+      }
+    })
+
+    return () => {
+      unsubscribeRoom()
+      unsubscribeChat()
+      unsubscribeMedia()
+      unsubscribeDisconnect()
+      unsubscribeConnectError()
+      socketClient.disconnect()
+    }
+  }, [resetRoomState])
 
   function enterUnsupportedState() {
     setAppState(APP_STATES.UNSUPPORTED)
   }
 
-  function handleCreateRoom(name) {
+  async function handleCreateRoom(name) {
     if (isUnsupported) {
       enterUnsupportedState()
       return
     }
 
-    const draftRoomId = crypto.randomUUID().slice(0, 8)
-    setRoomId(draftRoomId)
-    joinDraftRoom(name, draftRoomId)
-  }
-
-  function handleJoinRoom(name) {
-    if (isUnsupported) {
-      enterUnsupportedState()
-      return
-    }
-
-    joinDraftRoom(name, roomId)
-  }
-
-  function joinDraftRoom(name, nextRoomId) {
     const normalizedName = name.trim()
+    prepareJoining()
 
-    setDisplayName(normalizedName)
+    try {
+      const createResult = await socketClient.createRoom()
+
+      if (!createResult?.ok) {
+        throw new Error(createResult?.message || 'Room creation failed')
+      }
+
+      await joinRoom(normalizedName, createResult.roomId)
+    } catch {
+      resetRoomState()
+      setAppState(APP_STATES.SERVER_ERROR)
+    }
+  }
+
+  async function handleJoinRoom(name) {
+    if (isUnsupported) {
+      enterUnsupportedState()
+      return
+    }
+
+    const normalizedName = name.trim()
+    prepareJoining()
+
+    try {
+      await joinRoom(normalizedName, roomId)
+    } catch {
+      resetRoomState()
+      setAppState(APP_STATES.SERVER_ERROR)
+    }
+  }
+
+  function prepareJoining() {
+    isLeavingRef.current = false
     setAppState(APP_STATES.JOINING)
+    setParticipants([])
+    setMessages([])
+  }
 
-    const self = {
-      id: 'local-preview',
+  async function joinRoom(normalizedName, nextRoomId) {
+    const joinResult = await socketClient.joinRoom({
+      roomId: nextRoomId,
       name: normalizedName,
       media,
-      isSelf: true,
+    })
+
+    if (!joinResult?.ok) {
+      if (joinResult?.code === 'ROOM_FULL') {
+        resetRoomState()
+        setAppState(APP_STATES.FULL_ROOM)
+        return
+      }
+
+      throw new Error(joinResult?.message || 'Room join failed')
     }
 
-    setParticipants([self])
-    setMessages([
-      {
-        id: 'welcome',
-        type: 'system',
-        text: 'Комната готова к подключению signaling server.',
-        createdAt: Date.now(),
-      },
-    ])
+    selfIdRef.current = joinResult.selfId
     setRoomId(nextRoomId)
+    setParticipants(markSelfParticipant(joinResult.room.participants, joinResult.selfId))
+    setMessages(joinResult.room.messages)
     setAppState(APP_STATES.ROOM)
   }
 
-  function handleLeaveRoom() {
-    setDisplayName('')
-    setParticipants([])
-    setMessages([])
-    setMedia({ audioEnabled: true, videoEnabled: true })
+  async function handleLeaveRoom() {
+    isLeavingRef.current = true
+    if (socketClient.connected) {
+      try {
+        await socketClient.leaveRoom()
+      } catch {
+        socketClient.disconnect()
+      }
+    }
+
+    resetRoomState()
     setAppState(APP_STATES.START)
   }
 
@@ -98,6 +188,7 @@ function App() {
     setMedia((current) => {
       const next = { ...current, audioEnabled: !current.audioEnabled }
       updateSelfMedia(next)
+      socketClient.updateMedia(next)
       return next
     })
   }
@@ -106,6 +197,7 @@ function App() {
     setMedia((current) => {
       const next = { ...current, videoEnabled: !current.videoEnabled }
       updateSelfMedia(next)
+      socketClient.updateMedia(next)
       return next
     })
   }
@@ -118,23 +210,18 @@ function App() {
     )
   }
 
-  function handleSendMessage(text) {
+  async function handleSendMessage(text) {
     const trimmedText = text.trim()
 
     if (!trimmedText) {
       return
     }
 
-    setMessages((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        type: 'user',
-        senderName: displayName,
-        text: trimmedText,
-        createdAt: Date.now(),
-      },
-    ])
+    try {
+      await socketClient.sendChatMessage(trimmedText)
+    } catch {
+      setAppState(APP_STATES.SERVER_ERROR)
+    }
   }
 
   if (appState === APP_STATES.UNSUPPORTED) {
@@ -226,6 +313,13 @@ function App() {
       />
     </main>
   )
+}
+
+function markSelfParticipant(participants, selfId) {
+  return participants.map((participant) => ({
+    ...participant,
+    isSelf: participant.id === selfId,
+  }))
 }
 
 export default App

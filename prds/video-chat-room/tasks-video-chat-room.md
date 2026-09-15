@@ -77,7 +77,7 @@
   - Зависимости: после 1 можно параллельно с backend; перед 10-15.
   - _Requirements: F-01, F-02, F-03, Must 36, Non-Goals client storage; Design: 4 Frontend, 8 Error Handling_
 
-- [ ] 10. Реализовать client socket layer
+- [x] 10. Реализовать client socket layer
   - Добавить `socket.io-client` dependency.
   - Создать `socketClient` с подключением к signaling server и контролируемым reconnect policy без автоматического возврата в комнату.
   - Реализовать подписки/отписки на room, chat, media и webrtc events.
