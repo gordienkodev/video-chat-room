@@ -85,7 +85,7 @@
   - Зависимости: после 4 и 9; перед 12-15.
   - _Requirements: Must 31, Must 35; Design: 4 Frontend, 6 API / Contracts, 8 Error Handling, 13 Risks_
 
-- [ ] 11. Реализовать local media hook
+- [x] 11. Реализовать local media hook
   - Проверять поддержку `navigator.mediaDevices` и `RTCPeerConnection`.
   - Запрашивать audio/video при входе, учитывая autoplay gesture через действие пользователя.
   - Разрешить вход при отказе permissions или отсутствии устройств с выключенными media flags.

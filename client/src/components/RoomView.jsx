@@ -1,4 +1,4 @@
-function RoomView({ roomId, videoGrid, toolbar, chatPanel, participantsList }) {
+function RoomView({ roomId, videoGrid, toolbar, mediaStatus, chatPanel, participantsList }) {
   return (
     <main className="room-layout">
       <header className="room-header">
@@ -8,6 +8,12 @@ function RoomView({ roomId, videoGrid, toolbar, chatPanel, participantsList }) {
         </div>
         {toolbar}
       </header>
+
+      {mediaStatus ? (
+        <p className="media-status" role="status">
+          {mediaStatus}
+        </p>
+      ) : null}
 
       <section className="room-stage">{videoGrid}</section>
 

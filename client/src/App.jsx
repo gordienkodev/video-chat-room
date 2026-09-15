@@ -7,6 +7,7 @@ import { ParticipantsList } from './components/ParticipantsList.jsx'
 import { RoomView } from './components/RoomView.jsx'
 import { Toolbar } from './components/Toolbar.jsx'
 import { VideoTile } from './components/VideoTile.jsx'
+import { useLocalMedia } from './hooks/useLocalMedia.js'
 import { socketClient } from './socketClient.js'
 
 function getInitialRoute() {
@@ -31,20 +32,18 @@ function App() {
   const [roomId, setRoomId] = useState(initialRoute.roomId)
   const [participants, setParticipants] = useState([])
   const [messages, setMessages] = useState([])
-  const [media, setMedia] = useState({ audioEnabled: true, videoEnabled: true })
+  const localMedia = useLocalMedia()
+  const { stopMedia } = localMedia
   const isLeavingRef = useRef(false)
   const selfIdRef = useRef('')
   const appStateRef = useRef(appState)
-
-  const isUnsupported =
-    !('mediaDevices' in navigator) || typeof window.RTCPeerConnection === 'undefined'
 
   const resetRoomState = useCallback(() => {
     selfIdRef.current = ''
     setParticipants([])
     setMessages([])
-    setMedia({ audioEnabled: true, videoEnabled: true })
-  }, [])
+    stopMedia()
+  }, [stopMedia])
 
   useEffect(() => {
     appStateRef.current = appState
@@ -100,7 +99,7 @@ function App() {
   }
 
   async function handleCreateRoom(name) {
-    if (isUnsupported) {
+    if (!localMedia.isSupported) {
       enterUnsupportedState()
       return
     }
@@ -109,13 +108,14 @@ function App() {
     prepareJoining()
 
     try {
+      const nextMedia = await localMedia.startMedia()
       const createResult = await socketClient.createRoom()
 
       if (!createResult?.ok) {
         throw new Error(createResult?.message || 'Room creation failed')
       }
 
-      await joinRoom(normalizedName, createResult.roomId)
+      await joinRoom(normalizedName, createResult.roomId, nextMedia)
     } catch {
       resetRoomState()
       setAppState(APP_STATES.SERVER_ERROR)
@@ -123,7 +123,7 @@ function App() {
   }
 
   async function handleJoinRoom(name) {
-    if (isUnsupported) {
+    if (!localMedia.isSupported) {
       enterUnsupportedState()
       return
     }
@@ -132,7 +132,8 @@ function App() {
     prepareJoining()
 
     try {
-      await joinRoom(normalizedName, roomId)
+      const nextMedia = await localMedia.startMedia()
+      await joinRoom(normalizedName, roomId, nextMedia)
     } catch {
       resetRoomState()
       setAppState(APP_STATES.SERVER_ERROR)
@@ -146,11 +147,11 @@ function App() {
     setMessages([])
   }
 
-  async function joinRoom(normalizedName, nextRoomId) {
+  async function joinRoom(normalizedName, nextRoomId, nextMedia) {
     const joinResult = await socketClient.joinRoom({
       roomId: nextRoomId,
       name: normalizedName,
-      media,
+      media: nextMedia,
     })
 
     if (!joinResult?.ok) {
@@ -185,21 +186,15 @@ function App() {
   }
 
   function handleToggleAudio() {
-    setMedia((current) => {
-      const next = { ...current, audioEnabled: !current.audioEnabled }
-      updateSelfMedia(next)
-      socketClient.updateMedia(next)
-      return next
-    })
+    const nextMedia = localMedia.toggleAudio()
+    updateSelfMedia(nextMedia)
+    socketClient.updateMedia(nextMedia)
   }
 
-  function handleToggleVideo() {
-    setMedia((current) => {
-      const next = { ...current, videoEnabled: !current.videoEnabled }
-      updateSelfMedia(next)
-      socketClient.updateMedia(next)
-      return next
-    })
+  async function handleToggleVideo() {
+    const nextMedia = await localMedia.toggleVideo()
+    updateSelfMedia(nextMedia)
+    socketClient.updateMedia(nextMedia)
   }
 
   function updateSelfMedia(nextMedia) {
@@ -284,19 +279,24 @@ function App() {
         videoGrid={
           <div className="video-grid" aria-label="Видео участников">
             {participants.map((participant) => (
-              <VideoTile key={participant.id} participant={participant} />
+              <VideoTile
+                key={participant.id}
+                participant={participant}
+                stream={participant.isSelf ? localMedia.stream : null}
+              />
             ))}
           </div>
         }
         toolbar={
           <Toolbar
-            audioEnabled={media.audioEnabled}
-            videoEnabled={media.videoEnabled}
+            audioEnabled={localMedia.media.audioEnabled}
+            videoEnabled={localMedia.media.videoEnabled}
             onToggleAudio={handleToggleAudio}
             onToggleVideo={handleToggleVideo}
             onLeave={handleLeaveRoom}
           />
         }
+        mediaStatus={localMedia.error}
         chatPanel={<ChatPanel messages={messages} onSendMessage={handleSendMessage} />}
         participantsList={<ParticipantsList participants={participants} />}
       />
