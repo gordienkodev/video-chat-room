@@ -29,7 +29,7 @@
   - Зависимости: после 2; перед 4-7.
   - _Requirements: F-03, F-04, F-05, F-13, F-14, F-16, F-18, Must 9, Must 30; Design: 5 Data Model, 8 Error Handling, 9 Performance_
 
-- [ ] 4. Реализовать HTTP entrypoint сервера
+- [x] 4. Реализовать HTTP entrypoint сервера
   - Создать `server/index.js` с Express, HTTP server и Socket.io.
   - Добавить `GET /health`.
   - Настроить CORS для dev origin и базовую конфигурацию production-static без чтения `.env`.
