@@ -159,7 +159,7 @@
   - Зависимости: после 12.
   - _Requirements: F-06, F-07, Should 34; Design: 11 Testing Strategy, 13 Risks_
 
-- [ ] 20. Добавить Playwright E2E smoke tests
+- [x] 20. Добавить Playwright E2E smoke tests
   - Запускать client + server в тестовом окружении.
   - Проверить создание комнаты, копирование/использование URL, вход второго участника.
   - Проверить чат и историю для позднего входа.
