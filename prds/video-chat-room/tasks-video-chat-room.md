@@ -20,7 +20,7 @@
   - Зависимости: после 1; перед 3, 4, 6.
   - _Requirements: F-01, F-15, Must 24, Must 38, Must 39, Should 40; Design: 4 Backend, 8 Error Handling, 10 Security_
 
-- [ ] 3. Реализовать in-memory room store
+- [x] 3. Реализовать in-memory room store
   - Добавить `Map<roomId, Room>` и модели `Room`, `Participant`, `ChatMessage`.
   - Реализовать создание/получение комнаты, добавление участника, удаление участника, удаление пустой комнаты.
   - Реализовать атомарную проверку лимита 4 участников внутри операции join.
