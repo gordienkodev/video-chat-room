@@ -14,6 +14,7 @@ export default defineConfig({
   plugins: [react(), roomRouteFallback()],
   test: {
     environment: 'jsdom',
+    exclude: ['e2e/**', 'node_modules/**'],
     setupFiles: './src/test/setup.js',
     globals: true,
   },

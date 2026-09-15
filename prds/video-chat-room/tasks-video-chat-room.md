@@ -168,7 +168,7 @@
   - Зависимости: после 8, 15, 16, 17.
   - _Requirements: F-02, F-03, F-04, F-05, F-06, F-09, F-10, F-12, F-14; Design: 11 Testing Strategy_
 
-- [ ] 21. Провести manual QA по ключевым edge cases
+- [x] 21. Провести manual QA по ключевым edge cases
   - Проверить Chrome, Firefox, Edge 100+ на localhost.
   - Проверить отказ в camera/mic permissions.
   - Проверить отсутствие камеры/микрофона.
