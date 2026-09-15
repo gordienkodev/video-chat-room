@@ -371,12 +371,18 @@ function App() {
   }
 
   if (appState === APP_STATES.ROOM) {
+    const orderedParticipants = prioritizeSelfParticipant(participants)
+    const visibleParticipantCount = clampParticipantCount(orderedParticipants.length)
+
     return (
       <RoomView
         roomId={roomId}
         videoGrid={
-          <div className="video-grid" aria-label="Видео участников">
-            {participants.map((participant) => (
+          <div
+            className={`video-grid video-grid--${visibleParticipantCount}`}
+            aria-label="Видео участников"
+          >
+            {orderedParticipants.map((participant) => (
               <VideoTile
                 key={participant.id}
                 participant={participant}
@@ -420,6 +426,20 @@ function markSelfParticipant(participants, selfId) {
     ...participant,
     isSelf: participant.id === selfId,
   }))
+}
+
+function prioritizeSelfParticipant(participants) {
+  return [...participants].sort((firstParticipant, secondParticipant) => {
+    if (firstParticipant.isSelf === secondParticipant.isSelf) {
+      return 0
+    }
+
+    return firstParticipant.isSelf ? -1 : 1
+  })
+}
+
+function clampParticipantCount(count) {
+  return Math.min(Math.max(count, 1), 4)
 }
 
 function setRoomRoute(roomId) {

@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react'
 function VideoTile({ participant, stream }) {
   const media = participant.media ?? { audioEnabled: false, videoEnabled: false }
   const videoRef = useRef(null)
+  const isVideoVisible = Boolean(stream && media.videoEnabled)
+  const tileClassName = participant.isSelf ? 'video-tile video-tile--self' : 'video-tile'
 
   useEffect(() => {
     if (videoRef.current) {
@@ -11,8 +13,8 @@ function VideoTile({ participant, stream }) {
   }, [stream])
 
   return (
-    <article className="video-tile">
-      {stream && media.videoEnabled ? (
+    <article className={tileClassName}>
+      {isVideoVisible ? (
         <video
           ref={videoRef}
           aria-label={`Видео: ${participant.name}`}
@@ -21,15 +23,20 @@ function VideoTile({ participant, stream }) {
           playsInline
         />
       ) : (
-        <div className="video-placeholder" aria-hidden="true">
-          {participant.name.slice(0, 1).toUpperCase()}
+        <div className="video-placeholder" aria-label={`Камера выключена: ${participant.name}`}>
+          <span className="avatar-silhouette" aria-hidden="true" />
         </div>
       )}
       <div className="video-overlay">
-        <span>{participant.name}</span>
-        <span aria-label={media.audioEnabled ? 'Микрофон включён' : 'Микрофон выключен'}>
-          {media.audioEnabled ? 'mic' : 'mute'}
+        <span className="participant-name">
+          {participant.name}
+          {participant.isSelf ? <span className="self-label">Вы</span> : null}
         </span>
+        {!media.audioEnabled ? (
+          <span className="muted-mic-icon" aria-label="Микрофон выключен">
+            <span className="sr-only">Микрофон выключен</span>
+          </span>
+        ) : null}
       </div>
       {!media.videoEnabled ? <span className="camera-badge">Камера выключена</span> : null}
       {participant.connectionState === 'failed' ? (

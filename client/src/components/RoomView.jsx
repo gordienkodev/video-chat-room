@@ -15,7 +15,9 @@ function RoomView({ roomId, videoGrid, toolbar, mediaStatus, chatPanel, particip
         </p>
       ) : null}
 
-      <section className="room-stage">{videoGrid}</section>
+      <section className="room-stage" aria-label="Видеозвонок">
+        {videoGrid}
+      </section>
 
       <aside className="room-sidebar">
         {participantsList}
