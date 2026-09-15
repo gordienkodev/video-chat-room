@@ -136,7 +136,7 @@
   - Зависимости: после 6, 10, 15; перед 17.
   - _Requirements: F-12, F-13, F-14, F-15, F-16, Must 21, Must 22, Must 23, Must 24, Must 26, Must 39; Design: 4 Frontend, 6 API / Contracts, 8 Error Handling, 10 Security_
 
-- [ ] 17. Настроить frontend routing и dev proxy
+- [x] 17. Настроить frontend routing и dev proxy
   - Обеспечить работу прямого открытия `/room/:roomId` в Vite dev server.
   - Настроить proxy `/socket.io` и `/health` на backend или документированную переменную `VITE_SIGNALING_URL` в `.env.example`.
   - Не читать и не изменять `.env`; новые настройки описывать только в `.env.example`.
