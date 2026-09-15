@@ -62,7 +62,7 @@
   - Зависимости: после 5; перед 11, 16.
   - _Requirements: F-06, Must 10, Should 34; Design: 6 API / Contracts, 7 Data & Control Flows, 8 Error Handling_
 
-- [ ] 8. Настроить server integration tests
+- [x] 8. Настроить server integration tests
   - Добавить тестовый запуск Socket.io server и несколько Socket.io clients.
   - Проверить join/create, отклонение 5-го участника, гонку за последний слот.
   - Проверить chat broadcast/history, disconnect cleanup, удаление пустой комнаты.

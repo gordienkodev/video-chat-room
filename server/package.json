@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node index.js",
     "start": "node index.js",
-    "test": "node --test ./test/*.test.js"
+    "test": "node --test test/run-tests.js"
   },
   "keywords": [],
   "author": "",
@@ -16,5 +16,8 @@
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.3"
   }
 }
