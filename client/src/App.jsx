@@ -223,6 +223,7 @@ function App() {
 
     selfIdRef.current = joinResult.selfId
     setRoomId(nextRoomId)
+    setRoomRoute(nextRoomId)
     setParticipants(
       markSelfParticipant(
         mergeParticipantStreams(joinResult.room.participants, [], remoteStreamsRef.current),
@@ -404,6 +405,14 @@ function markSelfParticipant(participants, selfId) {
     ...participant,
     isSelf: participant.id === selfId,
   }))
+}
+
+function setRoomRoute(roomId) {
+  const nextPath = `/room/${encodeURIComponent(roomId)}`
+
+  if (window.location.pathname !== nextPath) {
+    window.history.pushState({}, '', nextPath)
+  }
 }
 
 function upsertParticipant(participants, nextParticipant) {
