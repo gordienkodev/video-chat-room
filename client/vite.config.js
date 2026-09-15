@@ -12,6 +12,11 @@ const ROOM_ROUTE_PATTERN = /^\/room\/[A-Za-z0-9_-]{6,64}\/?$/
 export default defineConfig({
   appType: 'spa',
   plugins: [react(), roomRouteFallback()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.js',
+    globals: true,
+  },
   server: {
     proxy: {
       '/health': BACKEND_URL,

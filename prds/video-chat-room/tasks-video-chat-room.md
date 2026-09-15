@@ -143,7 +143,7 @@
   - Зависимости: после 4, 10, 13.
   - _Requirements: F-03, F-04, Must 35; Design: 10 Security, 12 Deployment_
 
-- [ ] 18. Добавить frontend unit tests
+- [x] 18. Добавить frontend unit tests
   - Проверить валидацию имени и chat input.
   - Проверить state transitions стартового экрана, full-room, server-error, unsupported.
   - Проверить media toggle state с mock tracks.
