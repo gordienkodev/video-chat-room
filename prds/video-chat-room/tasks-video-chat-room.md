@@ -46,7 +46,7 @@
   - Зависимости: после 3 и 4; перед 6, 7, 16.
   - _Requirements: F-02, F-03, F-04, F-05, F-15, F-16, F-17, F-18, Must 8, Must 27, Must 28, Must 31, Must 32; Design: 6 Socket.io Contracts, 7 Data & Control Flows, 8 Error Handling_
 
-- [ ] 6. Реализовать Socket.io chat handlers
+- [x] 6. Реализовать Socket.io chat handlers
   - Добавить `chat:send` с серверной валидацией текста.
   - Рассылать `chat:message` всем участникам комнаты.
   - Возвращать историю сообщений в `room:join` snapshot.

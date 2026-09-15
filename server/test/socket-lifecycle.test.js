@@ -163,6 +163,83 @@ test("room:leave and disconnect remove participants, broadcast updates, and dele
   assert.equal(roomStore.getRoom("room-life"), null);
 });
 
+test("chat:send validates, stores, broadcasts plain text, and returns history on join", () => {
+  let messageId = 0;
+  const roomStore = createRoomStore({
+    now: () => 3000,
+    createId: () => `message-${(messageId += 1)}`,
+  });
+  const io = createFakeIo();
+
+  registerSocketHandlers({ io, roomStore, validators });
+
+  const first = io.connect("socket-1");
+  const second = io.connect("socket-2");
+
+  join(first, "room-chat", "Алекс");
+  join(second, "room-chat", "Мария");
+  first.received = [];
+  second.received = [];
+
+  let sendAck;
+  first.trigger("chat:send", { text: "  <b>Привет</b>  " }, (ack) => {
+    sendAck = ack;
+  });
+
+  assert.equal(sendAck.ok, true);
+  assert.deepEqual(sendAck.message, {
+    id: "message-3",
+    type: "user",
+    senderId: "socket-1",
+    senderName: "Алекс",
+    text: "<b>Привет</b>",
+    createdAt: 3000,
+  });
+  assert.deepEqual(first.received, [{ name: "chat:message", payload: sendAck.message }]);
+  assert.deepEqual(second.received, [{ name: "chat:message", payload: sendAck.message }]);
+
+  const late = io.connect("socket-3");
+  const joinAck = join(late, "room-chat", "Ира");
+
+  assert.equal(
+    joinAck.room.messages.some(
+      (message) => message.type === "user" && message.text === "<b>Привет</b>",
+    ),
+    true,
+  );
+});
+
+test("chat:send rejects invalid text and sockets outside rooms without broadcasting", () => {
+  const roomStore = createRoomStore();
+  const io = createFakeIo();
+
+  registerSocketHandlers({ io, roomStore, validators });
+
+  const socket = io.connect("socket-1");
+  let notInRoomAck;
+  socket.trigger("chat:send", { text: "Привет" }, (ack) => {
+    notInRoomAck = ack;
+  });
+
+  assert.deepEqual(notInRoomAck, {
+    ok: false,
+    code: "NOT_IN_ROOM",
+    message: "Socket is not in a room",
+  });
+
+  join(socket, "room-chat", "Алекс");
+  socket.received = [];
+
+  let invalidAck;
+  socket.trigger("chat:send", { text: "   " }, (ack) => {
+    invalidAck = ack;
+  });
+
+  assert.equal(invalidAck.ok, false);
+  assert.equal(invalidAck.code, "INVALID_CHAT_MESSAGE");
+  assert.deepEqual(socket.received, []);
+});
+
 function join(socket, roomId, name) {
   let ack;
 

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node index.js",
     "start": "node index.js",
-    "test": "node --test test"
+    "test": "node --test ./test/*.test.js"
   },
   "keywords": [],
   "author": "",

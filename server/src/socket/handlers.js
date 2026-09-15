@@ -90,6 +90,47 @@ function registerSocketHandlers({ io, roomStore, validators } = {}) {
       });
     });
 
+    socket.on("chat:send", (payload = {}, ack) => {
+      const roomId = socket.data?.roomId;
+      const room = roomId ? roomStore.getRoom(roomId) : null;
+      const sender = room?.participants.find((participant) => participant.id === socket.id);
+
+      if (!room || !sender) {
+        acknowledge(ack, {
+          ok: false,
+          code: "NOT_IN_ROOM",
+          message: "Socket is not in a room",
+        });
+        return;
+      }
+
+      const data = isPlainObject(payload) ? payload : {};
+      const messageResult = validators.validateChatMessage(data.text);
+      if (!messageResult.ok) {
+        acknowledge(ack, messageResult);
+        return;
+      }
+
+      const appendResult = roomStore.appendMessage(roomId, {
+        type: "user",
+        senderId: socket.id,
+        senderName: sender.name,
+        text: messageResult.value,
+      });
+
+      if (!appendResult.ok) {
+        acknowledge(ack, appendResult);
+        return;
+      }
+
+      io.to(roomId).emit("chat:message", appendResult.message);
+
+      acknowledge(ack, {
+        ok: true,
+        message: appendResult.message,
+      });
+    });
+
     socket.on("disconnect", () => {
       leaveCurrentRoom(socket, roomStore, io);
     });
