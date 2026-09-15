@@ -70,7 +70,7 @@
   - Зависимости: после 5-7.
   - _Requirements: F-03, F-05, F-12, F-14, F-16, F-18; Design: 11 Testing Strategy_
 
-- [ ] 9. Подготовить структуру frontend-приложения
+- [x] 9. Подготовить структуру frontend-приложения
   - Убрать starter UI из `App.jsx` и выделить состояния: старт, ввод имени по ссылке, joining, room, full-room, server-error, unsupported.
   - Добавить базовые компоненты `NameGate`, `RoomView`, `VideoTile`, `ChatPanel`, `ParticipantsList`, `Toolbar`.
   - Не использовать localStorage/sessionStorage для имени или состояния.
