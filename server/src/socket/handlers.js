@@ -131,6 +131,37 @@ function registerSocketHandlers({ io, roomStore, validators } = {}) {
       });
     });
 
+    socket.on("media:update", (payload = {}, ack) => {
+      const roomId = socket.data?.roomId;
+      const room = roomId ? roomStore.getRoom(roomId) : null;
+
+      if (!room) {
+        acknowledge(ack, {
+          ok: false,
+          code: "NOT_IN_ROOM",
+          message: "Socket is not in a room",
+        });
+        return;
+      }
+
+      const result = roomStore.updateParticipantMedia(roomId, socket.id, payload);
+
+      if (!result.ok) {
+        acknowledge(ack, result);
+        return;
+      }
+
+      io.to(roomId).emit("media:updated", {
+        participantId: result.participant.id,
+        media: result.participant.media,
+      });
+
+      acknowledge(ack, {
+        ok: true,
+        media: result.participant.media,
+      });
+    });
+
     socket.on("webrtc:offer", (payload = {}, ack) => {
       relayWebRtcSignal(socket, io, roomStore, "webrtc:offer", payload, ack);
     });

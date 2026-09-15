@@ -33,6 +33,7 @@ function App() {
   const [roomId, setRoomId] = useState(initialRoute.roomId)
   const [participants, setParticipants] = useState([])
   const [messages, setMessages] = useState([])
+  const [copyStatus, setCopyStatus] = useState('idle')
   const localMedia = useLocalMedia()
   const { stopMedia } = localMedia
   const isLeavingRef = useRef(false)
@@ -48,6 +49,7 @@ function App() {
     selfIdRef.current = ''
     setParticipants([])
     setMessages([])
+    setCopyStatus('idle')
     stopMedia()
   }, [stopMedia])
 
@@ -245,6 +247,8 @@ function App() {
     }
 
     resetRoomState()
+    setStartRoute()
+    setRoomId('')
     setAppState(APP_STATES.START)
   }
 
@@ -259,6 +263,15 @@ function App() {
     peerManagerRef.current?.setLocalStream(localMedia.getCurrentStream())
     updateSelfMedia(nextMedia)
     socketClient.updateMedia(nextMedia)
+  }
+
+  async function handleCopyRoomLink() {
+    try {
+      await copyText(window.location.href)
+      setCopyStatus('copied')
+    } catch {
+      setCopyStatus('failed')
+    }
   }
 
   function updateSelfMedia(nextMedia) {
@@ -378,7 +391,9 @@ function App() {
             videoEnabled={localMedia.media.videoEnabled}
             onToggleAudio={handleToggleAudio}
             onToggleVideo={handleToggleVideo}
+            onCopyLink={handleCopyRoomLink}
             onLeave={handleLeaveRoom}
+            copyStatus={copyStatus}
           />
         }
         mediaStatus={localMedia.error}
@@ -412,6 +427,37 @@ function setRoomRoute(roomId) {
 
   if (window.location.pathname !== nextPath) {
     window.history.pushState({}, '', nextPath)
+  }
+}
+
+function setStartRoute() {
+  if (window.location.pathname !== '/') {
+    window.history.pushState({}, '', '/')
+  }
+}
+
+async function copyText(text) {
+  if (globalThis.navigator?.clipboard?.writeText) {
+    await globalThis.navigator.clipboard.writeText(text)
+    return
+  }
+
+  const textArea = document.createElement('textarea')
+  textArea.value = text
+  textArea.setAttribute('readonly', '')
+  textArea.style.position = 'fixed'
+  textArea.style.top = '-1000px'
+  textArea.style.left = '-1000px'
+  document.body.append(textArea)
+  textArea.select()
+
+  try {
+    const copied = document.execCommand('copy')
+    if (!copied) {
+      throw new Error('Copy command failed')
+    }
+  } finally {
+    textArea.remove()
   }
 }
 

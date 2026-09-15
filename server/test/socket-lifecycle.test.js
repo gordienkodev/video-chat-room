@@ -240,6 +240,67 @@ test("chat:send rejects invalid text and sockets outside rooms without broadcast
   assert.deepEqual(socket.received, []);
 });
 
+test("media:update stores media state and broadcasts it to room participants", () => {
+  const roomStore = createRoomStore();
+  const io = createFakeIo();
+
+  registerSocketHandlers({ io, roomStore, validators });
+
+  const first = io.connect("socket-1");
+  const second = io.connect("socket-2");
+  const outsider = io.connect("socket-3");
+
+  join(first, "room-media", "Алекс");
+  join(second, "room-media", "Мария");
+  first.received = [];
+  second.received = [];
+  outsider.received = [];
+
+  let updateAck;
+  first.trigger(
+    "media:update",
+    {
+      audioEnabled: false,
+      videoEnabled: true,
+    },
+    (ack) => {
+      updateAck = ack;
+    },
+  );
+
+  const expectedPayload = {
+    participantId: "socket-1",
+    media: { audioEnabled: false, videoEnabled: true },
+  };
+
+  assert.deepEqual(updateAck, {
+    ok: true,
+    media: expectedPayload.media,
+  });
+  assert.deepEqual(roomStore.getRoom("room-media").participants[0].media, expectedPayload.media);
+  assert.deepEqual(first.received, [{ name: "media:updated", payload: expectedPayload }]);
+  assert.deepEqual(second.received, [{ name: "media:updated", payload: expectedPayload }]);
+  assert.deepEqual(outsider.received, []);
+
+  let notInRoomAck;
+  outsider.trigger(
+    "media:update",
+    {
+      audioEnabled: true,
+      videoEnabled: true,
+    },
+    (ack) => {
+      notInRoomAck = ack;
+    },
+  );
+
+  assert.deepEqual(notInRoomAck, {
+    ok: false,
+    code: "NOT_IN_ROOM",
+    message: "Socket is not in a room",
+  });
+});
+
 test("webrtc signaling relays only to a recipient in the same room and adds from", () => {
   const roomStore = createRoomStore();
   const io = createFakeIo();

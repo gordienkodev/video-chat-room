@@ -323,9 +323,20 @@ input {
   background: #5a2531;
 }
 
+.toolbar .copy-button.is-copied {
+  color: #111111;
+  background: #7dd3fc;
+}
+
 .toolbar .leave-button {
   color: #f7f2ea;
   background: #b4232d;
+}
+
+.toolbar-status {
+  align-self: center;
+  color: #fca5a5;
+  font-size: 13px;
 }
 
 @media (max-width: 900px) {
