@@ -177,7 +177,7 @@
   - Зависимости: после 20.
   - _Requirements: Must 28, Must 29, Must 33, Must 35, Must 36; Design: 8 Error Handling, 11 Testing Strategy_
 
-- [ ] 22. Обновить документацию запуска и ограничений
+- [x] 22. Обновить документацию запуска и ограничений
   - Описать dev startup client/server.
   - Описать HTTPS/localhost requirement для WebRTC.
   - Описать отсутствие TURN, БД, auth, auto-reconnect и persistent storage.
