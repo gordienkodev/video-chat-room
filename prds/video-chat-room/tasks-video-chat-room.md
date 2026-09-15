@@ -151,7 +151,7 @@
   - Зависимости: после 9, 11, 13, 14, 16.
   - _Requirements: F-01, F-09, F-10, F-12, Must 33, Must 36, Must 39; Design: 11 Testing Strategy_
 
-- [ ] 19. Добавить WebRTC unit tests с mock RTCPeerConnection
+- [x] 19. Добавить WebRTC unit tests с mock RTCPeerConnection
   - Проверить создание peer connection на участника.
   - Проверить добавление local tracks и обработку remote tracks.
   - Проверить cleanup при `participant-left`.
