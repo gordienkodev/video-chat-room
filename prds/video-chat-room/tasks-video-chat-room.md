@@ -127,7 +127,7 @@
   - Зависимости: после 12-14; перед 17.
   - _Requirements: F-06, F-07, F-08, F-09, F-10, F-16, Must 11, Must 12, Must 16, Must 18, Must 39; Design: 4 Frontend, 8 Error Handling, 9 Performance, 10 Security_
 
-- [ ] 16. Реализовать chat panel и participants list
+- [x] 16. Реализовать chat panel и participants list
   - Отправлять только непустые сообщения.
   - Отображать user/system messages, имя отправителя и локальное время `HH:MM`.
   - Автоматически прокручивать чат к последнему сообщению.
