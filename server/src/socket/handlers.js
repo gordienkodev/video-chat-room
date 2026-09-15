@@ -131,6 +131,18 @@ function registerSocketHandlers({ io, roomStore, validators } = {}) {
       });
     });
 
+    socket.on("webrtc:offer", (payload = {}, ack) => {
+      relayWebRtcSignal(socket, io, roomStore, "webrtc:offer", payload, ack);
+    });
+
+    socket.on("webrtc:answer", (payload = {}, ack) => {
+      relayWebRtcSignal(socket, io, roomStore, "webrtc:answer", payload, ack);
+    });
+
+    socket.on("webrtc:ice-candidate", (payload = {}, ack) => {
+      relayWebRtcSignal(socket, io, roomStore, "webrtc:ice-candidate", payload, ack);
+    });
+
     socket.on("disconnect", () => {
       leaveCurrentRoom(socket, roomStore, io);
     });
@@ -201,6 +213,81 @@ function emitSystemMessage(io, roomId, message) {
   if (message) {
     io.to(roomId).emit("chat:message", message);
   }
+}
+
+function relayWebRtcSignal(socket, io, roomStore, eventName, payload, ack) {
+  const roomId = socket.data?.roomId;
+  const room = roomId ? roomStore.getRoom(roomId) : null;
+  const data = isPlainObject(payload) ? payload : {};
+  const to = typeof data.to === "string" ? data.to : "";
+  const sender = room?.participants.find((participant) => participant.id === socket.id);
+  const recipient = room?.participants.find((participant) => participant.id === to);
+
+  if (!room || !sender) {
+    acknowledge(ack, {
+      ok: false,
+      code: "NOT_IN_ROOM",
+      message: "Socket is not in a room",
+    });
+    return;
+  }
+
+  if (!recipient) {
+    acknowledge(ack, {
+      ok: false,
+      code: "RECIPIENT_NOT_IN_ROOM",
+      message: "Recipient is not in the same room",
+    });
+    return;
+  }
+
+  const signal = createWebRtcSignal(eventName, data, socket.id);
+  if (!signal.ok) {
+    acknowledge(ack, signal);
+    return;
+  }
+
+  io.to(to).emit(eventName, signal.payload);
+
+  acknowledge(ack, {
+    ok: true,
+  });
+}
+
+function createWebRtcSignal(eventName, data, from) {
+  if (eventName === "webrtc:offer" || eventName === "webrtc:answer") {
+    if (!isPlainObject(data.description)) {
+      return {
+        ok: false,
+        code: "INVALID_WEBRTC_PAYLOAD",
+        message: "WebRTC description is required",
+      };
+    }
+
+    return {
+      ok: true,
+      payload: {
+        from,
+        description: data.description,
+      },
+    };
+  }
+
+  if (!isPlainObject(data.candidate)) {
+    return {
+      ok: false,
+      code: "INVALID_WEBRTC_PAYLOAD",
+      message: "WebRTC ICE candidate is required",
+    };
+  }
+
+  return {
+    ok: true,
+    payload: {
+      from,
+      candidate: data.candidate,
+    },
+  };
 }
 
 function acknowledge(ack, payload) {

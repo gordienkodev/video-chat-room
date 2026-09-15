@@ -54,7 +54,7 @@
   - Зависимости: после 3 и 5; перед 13, 16.
   - _Requirements: F-12, F-13, F-14, F-15, Must 21, Must 22, Must 23, Must 24, Must 39; Design: 6 API / Contracts, 8 Error Handling, 10 Security_
 
-- [ ] 7. Реализовать Socket.io WebRTC signaling relay
+- [x] 7. Реализовать Socket.io WebRTC signaling relay
   - Добавить ретрансляцию `webrtc:offer`, `webrtc:answer`, `webrtc:ice-candidate` только адресату в той же комнате.
   - Добавлять `from` на серверных signaling events.
   - Обрабатывать невалидные payloads без падения сервера.

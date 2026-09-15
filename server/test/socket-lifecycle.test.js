@@ -240,6 +240,166 @@ test("chat:send rejects invalid text and sockets outside rooms without broadcast
   assert.deepEqual(socket.received, []);
 });
 
+test("webrtc signaling relays only to a recipient in the same room and adds from", () => {
+  const roomStore = createRoomStore();
+  const io = createFakeIo();
+
+  registerSocketHandlers({ io, roomStore, validators });
+
+  const first = io.connect("socket-1");
+  const second = io.connect("socket-2");
+  const third = io.connect("socket-3");
+
+  join(first, "room-call", "User 1");
+  join(second, "room-call", "User 2");
+  join(third, "other-room", "User 3");
+  first.received = [];
+  second.received = [];
+  third.received = [];
+
+  let offerAck;
+  first.trigger(
+    "webrtc:offer",
+    {
+      to: "socket-2",
+      description: { type: "offer", sdp: "offer-sdp" },
+    },
+    (ack) => {
+      offerAck = ack;
+    },
+  );
+
+  assert.deepEqual(offerAck, { ok: true });
+  assert.deepEqual(first.received, []);
+  assert.deepEqual(second.received, [
+    {
+      name: "webrtc:offer",
+      payload: {
+        from: "socket-1",
+        description: { type: "offer", sdp: "offer-sdp" },
+      },
+    },
+  ]);
+  assert.deepEqual(third.received, []);
+
+  let answerAck;
+  second.trigger(
+    "webrtc:answer",
+    {
+      to: "socket-1",
+      description: { type: "answer", sdp: "answer-sdp" },
+    },
+    (ack) => {
+      answerAck = ack;
+    },
+  );
+
+  assert.deepEqual(answerAck, { ok: true });
+  assert.deepEqual(first.received, [
+    {
+      name: "webrtc:answer",
+      payload: {
+        from: "socket-2",
+        description: { type: "answer", sdp: "answer-sdp" },
+      },
+    },
+  ]);
+
+  let iceAck;
+  second.trigger(
+    "webrtc:ice-candidate",
+    {
+      to: "socket-1",
+      candidate: { candidate: "candidate:1", sdpMid: "0", sdpMLineIndex: 0 },
+    },
+    (ack) => {
+      iceAck = ack;
+    },
+  );
+
+  assert.deepEqual(iceAck, { ok: true });
+  assert.deepEqual(first.received[1], {
+    name: "webrtc:ice-candidate",
+    payload: {
+      from: "socket-2",
+      candidate: { candidate: "candidate:1", sdpMid: "0", sdpMLineIndex: 0 },
+    },
+  });
+});
+
+test("webrtc signaling rejects invalid payloads and recipients outside the room without broadcasting", () => {
+  const roomStore = createRoomStore();
+  const io = createFakeIo();
+
+  registerSocketHandlers({ io, roomStore, validators });
+
+  const first = io.connect("socket-1");
+  const second = io.connect("socket-2");
+  const outsider = io.connect("socket-3");
+  const notJoined = io.connect("socket-4");
+
+  join(first, "room-call", "User 1");
+  join(second, "room-call", "User 2");
+  join(outsider, "other-room", "User 3");
+  first.received = [];
+  second.received = [];
+  outsider.received = [];
+
+  let invalidPayloadAck;
+  first.trigger(
+    "webrtc:offer",
+    {
+      to: "socket-2",
+      description: null,
+    },
+    (ack) => {
+      invalidPayloadAck = ack;
+    },
+  );
+
+  assert.equal(invalidPayloadAck.ok, false);
+  assert.equal(invalidPayloadAck.code, "INVALID_WEBRTC_PAYLOAD");
+  assert.deepEqual(second.received, []);
+
+  let outsiderAck;
+  first.trigger(
+    "webrtc:offer",
+    {
+      to: "socket-3",
+      description: { type: "offer", sdp: "offer-sdp" },
+    },
+    (ack) => {
+      outsiderAck = ack;
+    },
+  );
+
+  assert.deepEqual(outsiderAck, {
+    ok: false,
+    code: "RECIPIENT_NOT_IN_ROOM",
+    message: "Recipient is not in the same room",
+  });
+  assert.deepEqual(outsider.received, []);
+
+  let notInRoomAck;
+  notJoined.trigger(
+    "webrtc:ice-candidate",
+    {
+      to: "socket-1",
+      candidate: { candidate: "candidate:1" },
+    },
+    (ack) => {
+      notInRoomAck = ack;
+    },
+  );
+
+  assert.deepEqual(notInRoomAck, {
+    ok: false,
+    code: "NOT_IN_ROOM",
+    message: "Socket is not in a room",
+  });
+  assert.deepEqual(first.received, []);
+});
+
 function join(socket, roomId, name) {
   let ack;
 
@@ -323,6 +483,13 @@ function createFakeIo() {
   }
 
   function emitToRoom(roomId, eventName, payload, excludedSocketId) {
+    if (sockets.has(roomId)) {
+      if (roomId !== excludedSocketId) {
+        sockets.get(roomId).emit(eventName, payload);
+      }
+      return;
+    }
+
     for (const socketId of roomMembers.get(roomId) || []) {
       if (socketId !== excludedSocketId) {
         sockets.get(socketId).emit(eventName, payload);
