@@ -33,7 +33,7 @@ test("HTTP entrypoint allows the Vite dev origin", async (t) => {
   assert.equal(response.headers["access-control-allow-origin"], "http://localhost:5173");
 });
 
-test("HTTP entrypoint creates a Socket.io server without room handlers", () => {
+test("HTTP entrypoint creates a Socket.io server with registered handlers", () => {
   const server = createServer();
 
   assert.equal(typeof server.io.on, "function");

@@ -37,7 +37,7 @@
   - Зависимости: после 1; перед 5-8.
   - _Requirements: Must 35; Design: 4 Backend, 6 HTTP, 10 Security, 12 Deployment_
 
-- [ ] 5. Реализовать Socket.io room lifecycle handlers
+- [x] 5. Реализовать Socket.io room lifecycle handlers
   - Добавить `room:create` с генерацией уникального `roomId`.
   - Добавить `room:join` с ack-ответами success / `ROOM_FULL`.
   - Добавить `room:leave` и `disconnect` с одинаковым удалением участника.
