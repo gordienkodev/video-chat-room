@@ -185,7 +185,7 @@
   - Зависимости: после 17; финализировать после 20.
   - _Requirements: Non-Goals, Must 35, Technical Considerations HTTPS/STUN; Design: 9 Performance, 10 Security, 12 Deployment, 13 Risks_
 
-- [ ] 23. Финальная проверка соответствия PRD/TDD
+- [x] 23. Финальная проверка соответствия PRD/TDD
   - Сверить все Must/Should требования PRD с реализованными задачами и тестами.
   - Проверить, что production-код не использует localStorage/sessionStorage для состояния.
   - Проверить, что `.env` не читался и не изменялся; новые данные находятся только в `.env.example`.
