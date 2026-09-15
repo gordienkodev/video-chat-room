@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 const EMPTY_MEDIA_STATE = {
   audioEnabled: false,
@@ -55,8 +55,10 @@ function useLocalMedia() {
   const [stream, setStream] = useState(null)
   const [media, setMedia] = useState(EMPTY_MEDIA_STATE)
   const [error, setError] = useState('')
+  const streamRef = useRef(null)
 
   const replaceStream = useCallback((nextStream) => {
+    streamRef.current = nextStream
     setStream((currentStream) => {
       if (currentStream && currentStream !== nextStream) {
         stopTracks(currentStream.getTracks())
@@ -149,11 +151,12 @@ function useLocalMedia() {
         return nextMedia
       }
 
-      setStream((currentStream) => {
-        const nextStream = currentStream ? new MediaStream(currentStream.getTracks()) : createEmptyStream()
-        nextStream.addTrack(videoTrack)
-        return nextStream
-      })
+      const nextStream = streamRef.current
+        ? new MediaStream(streamRef.current.getTracks())
+        : createEmptyStream()
+      nextStream.addTrack(videoTrack)
+      streamRef.current = nextStream
+      setStream(nextStream)
 
       const nextMedia = { ...media, videoEnabled: true }
       setMedia(nextMedia)
@@ -164,18 +167,15 @@ function useLocalMedia() {
     const videoTracks = stream?.getVideoTracks() ?? []
     stopTracks(videoTracks)
 
-    setStream((currentStream) => {
-      if (!currentStream) {
-        return currentStream
-      }
-
-      const nextStream = new MediaStream(currentStream.getTracks())
+    if (streamRef.current) {
+      const nextStream = new MediaStream(streamRef.current.getTracks())
       videoTracks.forEach((track) => {
         nextStream.removeTrack(track)
       })
 
-      return nextStream
-    })
+      streamRef.current = nextStream
+      setStream(nextStream)
+    }
 
     const nextMedia = { ...media, videoEnabled: false }
     setMedia(nextMedia)
@@ -188,8 +188,11 @@ function useLocalMedia() {
     setError('')
   }, [replaceStream])
 
+  const getCurrentStream = useCallback(() => streamRef.current, [])
+
   return useMemo(() => ({
     error,
+    getCurrentStream,
     isSupported,
     media,
     startMedia,
@@ -197,7 +200,17 @@ function useLocalMedia() {
     stream,
     toggleAudio,
     toggleVideo,
-  }), [error, isSupported, media, startMedia, stopMedia, stream, toggleAudio, toggleVideo])
+  }), [
+    error,
+    getCurrentStream,
+    isSupported,
+    media,
+    startMedia,
+    stopMedia,
+    stream,
+    toggleAudio,
+    toggleVideo,
+  ])
 }
 
 export { useLocalMedia }

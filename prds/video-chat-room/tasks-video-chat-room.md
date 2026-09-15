@@ -94,7 +94,7 @@
   - Зависимости: после 9; перед 12, 14, 15.
   - _Requirements: F-06, F-09, F-10, Must 13, Must 14, Must 19, Must 20, Must 33, Must 36, Must 37; Design: 4 Frontend, 8 Error Handling, 13 Risks_
 
-- [ ] 12. Реализовать WebRTC peer manager
+- [x] 12. Реализовать WebRTC peer manager
   - Создавать один `RTCPeerConnection` на каждого удалённого участника.
   - Использовать Google STUN.
   - Добавлять local tracks и обрабатывать remote tracks.

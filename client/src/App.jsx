@@ -9,6 +9,7 @@ import { Toolbar } from './components/Toolbar.jsx'
 import { VideoTile } from './components/VideoTile.jsx'
 import { useLocalMedia } from './hooks/useLocalMedia.js'
 import { socketClient } from './socketClient.js'
+import { createPeerManager } from './webrtc/peerManager.js'
 
 function getInitialRoute() {
   const match = window.location.pathname.match(/^\/room\/([A-Za-z0-9_-]{6,64})\/?$/)
@@ -35,10 +36,15 @@ function App() {
   const localMedia = useLocalMedia()
   const { stopMedia } = localMedia
   const isLeavingRef = useRef(false)
+  const peerManagerRef = useRef(null)
+  const remoteStreamsRef = useRef(new Map())
   const selfIdRef = useRef('')
   const appStateRef = useRef(appState)
 
   const resetRoomState = useCallback(() => {
+    peerManagerRef.current?.closeAll()
+    peerManagerRef.current = null
+    remoteStreamsRef.current.clear()
     selfIdRef.current = ''
     setParticipants([])
     setMessages([])
@@ -50,9 +56,39 @@ function App() {
   }, [appState])
 
   useEffect(() => {
+    peerManagerRef.current?.setLocalStream(localMedia.stream)
+  }, [localMedia.stream])
+
+  useEffect(() => {
     const unsubscribeRoom = socketClient.subscribeRoomEvents({
+      'room:participant-joined': ({ participant } = {}) => {
+        if (!participant?.id || participant.id === selfIdRef.current) {
+          return
+        }
+
+        setParticipants((current) =>
+          markSelfParticipant(upsertParticipant(current, participant), selfIdRef.current),
+        )
+        peerManagerRef.current?.createOfferForParticipant(participant.id).catch(() => {})
+      },
+      'room:participant-left': ({ participantId } = {}) => {
+        if (!participantId) {
+          return
+        }
+
+        peerManagerRef.current?.closePeer(participantId)
+        remoteStreamsRef.current.delete(participantId)
+        setParticipants((current) =>
+          current.filter((participant) => participant.id !== participantId),
+        )
+      },
       'room:participants': ({ participants: nextParticipants = [] } = {}) => {
-        setParticipants(markSelfParticipant(nextParticipants, selfIdRef.current))
+        setParticipants((current) =>
+          markSelfParticipant(
+            mergeParticipantStreams(nextParticipants, current, remoteStreamsRef.current),
+            selfIdRef.current,
+          ),
+        )
       },
     })
     const unsubscribeChat = socketClient.subscribeChatEvents({
@@ -67,6 +103,17 @@ function App() {
             participant.id === participantId ? { ...participant, media: nextMedia } : participant,
           ),
         )
+      },
+    })
+    const unsubscribeWebRtc = socketClient.subscribeWebRtcEvents({
+      'webrtc:offer': (payload) => {
+        peerManagerRef.current?.handleOffer(payload).catch(() => {})
+      },
+      'webrtc:answer': (payload) => {
+        peerManagerRef.current?.handleAnswer(payload).catch(() => {})
+      },
+      'webrtc:ice-candidate': (payload) => {
+        peerManagerRef.current?.handleIceCandidate(payload).catch(() => {})
       },
     })
     const unsubscribeDisconnect = socketClient.onDisconnect(() => {
@@ -88,6 +135,7 @@ function App() {
       unsubscribeRoom()
       unsubscribeChat()
       unsubscribeMedia()
+      unsubscribeWebRtc()
       unsubscribeDisconnect()
       unsubscribeConnectError()
       socketClient.disconnect()
@@ -148,6 +196,15 @@ function App() {
   }
 
   async function joinRoom(normalizedName, nextRoomId, nextMedia) {
+    peerManagerRef.current?.closeAll()
+    remoteStreamsRef.current.clear()
+    peerManagerRef.current = createPeerManager({
+      localStream: localMedia.getCurrentStream(),
+      onIceStateChange: handlePeerIceState,
+      onRemoteStream: handleRemoteStream,
+      socketClient,
+    })
+
     const joinResult = await socketClient.joinRoom({
       roomId: nextRoomId,
       name: normalizedName,
@@ -166,7 +223,12 @@ function App() {
 
     selfIdRef.current = joinResult.selfId
     setRoomId(nextRoomId)
-    setParticipants(markSelfParticipant(joinResult.room.participants, joinResult.selfId))
+    setParticipants(
+      markSelfParticipant(
+        mergeParticipantStreams(joinResult.room.participants, [], remoteStreamsRef.current),
+        joinResult.selfId,
+      ),
+    )
     setMessages(joinResult.room.messages)
     setAppState(APP_STATES.ROOM)
   }
@@ -193,6 +255,7 @@ function App() {
 
   async function handleToggleVideo() {
     const nextMedia = await localMedia.toggleVideo()
+    peerManagerRef.current?.setLocalStream(localMedia.getCurrentStream())
     updateSelfMedia(nextMedia)
     socketClient.updateMedia(nextMedia)
   }
@@ -217,6 +280,27 @@ function App() {
     } catch {
       setAppState(APP_STATES.SERVER_ERROR)
     }
+  }
+
+  function handlePeerIceState(participantId, state) {
+    if (state !== 'failed') {
+      return
+    }
+
+    setParticipants((current) =>
+      current.map((participant) =>
+        participant.id === participantId ? { ...participant, connectionState: state } : participant,
+      ),
+    )
+  }
+
+  function handleRemoteStream(participantId, stream) {
+    remoteStreamsRef.current.set(participantId, stream)
+    setParticipants((current) =>
+      current.map((participant) =>
+        participant.id === participantId ? { ...participant, stream } : participant,
+      ),
+    )
   }
 
   if (appState === APP_STATES.UNSUPPORTED) {
@@ -282,7 +366,7 @@ function App() {
               <VideoTile
                 key={participant.id}
                 participant={participant}
-                stream={participant.isSelf ? localMedia.stream : null}
+                stream={participant.isSelf ? localMedia.stream : participant.stream}
               />
             ))}
           </div>
@@ -320,6 +404,33 @@ function markSelfParticipant(participants, selfId) {
     ...participant,
     isSelf: participant.id === selfId,
   }))
+}
+
+function upsertParticipant(participants, nextParticipant) {
+  const hasParticipant = participants.some((participant) => participant.id === nextParticipant.id)
+
+  if (hasParticipant) {
+    return participants.map((participant) =>
+      participant.id === nextParticipant.id ? { ...participant, ...nextParticipant } : participant,
+    )
+  }
+
+  return [...participants, nextParticipant]
+}
+
+function mergeParticipantStreams(nextParticipants, currentParticipants, remoteStreams = new Map()) {
+  return nextParticipants.map((nextParticipant) => {
+    const currentParticipant = currentParticipants.find(
+      (participant) => participant.id === nextParticipant.id,
+    )
+    const remoteStream = remoteStreams.get(nextParticipant.id)
+
+    return remoteStream
+      ? { ...nextParticipant, stream: remoteStream }
+      : currentParticipant?.stream
+      ? { ...nextParticipant, stream: currentParticipant.stream }
+      : nextParticipant
+  })
 }
 
 export default App
