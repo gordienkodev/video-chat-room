@@ -9,7 +9,7 @@ const { createRoomStore } = require("./src/rooms/roomStore");
 const { registerSocketHandlers } = require("./src/socket/handlers");
 const validators = require("./src/validation");
 
-const DEFAULT_PORT = 3001;
+const DEFAULT_PORT = 3002;
 const DEFAULT_DEV_ORIGIN = "http://localhost:5173";
 
 function createServer(options = {}) {
