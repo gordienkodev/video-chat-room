@@ -6,7 +6,7 @@
 - TDD: `prds/video-chat-room/design-video-chat-room.md`
 - Правило: `prds/prd-tasks.mdc`
 
-- [ ] 1. Подготовить структуру backend-модулей
+- [x] 1. Подготовить структуру backend-модулей
   - Создать точки расширения для HTTP server, room store, socket handlers и validation без бизнес-логики сверх каркаса.
   - Зафиксировать CommonJS/ESM-подход в соответствии с текущим `server/package.json`.
   - Зависимости: нет; выполнять перед задачами 2-8.
